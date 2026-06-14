@@ -21,6 +21,7 @@ from .downloads import download_slide_images
 from .manifest import add_item_to_summary, build_success_manifest, create_root_summary, write_json, write_skipped_manifest
 from .models import CatalogItem, SlideScrapeOptions
 from .naming import make_unique_name, sanitize_name
+from .pdf import generate_pdfs
 
 
 class SlideScraper:
@@ -83,6 +84,9 @@ class SlideScraper:
 
             summary["finished_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
             write_json(course_output_dir / "summary.json", summary)
+            if self.options.pdf_enabled:
+                summary["pdf"] = generate_pdfs(course_output_dir).to_dict()
+                write_json(course_output_dir / "summary.json", summary)
             await context.close()
             return summary
 

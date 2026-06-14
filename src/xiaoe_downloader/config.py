@@ -127,9 +127,14 @@ class SlidesDownloadConfig:
 
 
 @dataclass(frozen=True)
+class SlidesPdfConfig:
+    enabled: bool = False
+
+
+@dataclass(frozen=True)
 class SlidesConfig:
     course_url: str = ""
-    output_dir: str = "./slides"
+    output_dir: str = "./out/slides"
     skip_title: str = "测试题"
     clear: bool = True
     resource_concurrency: int = 6
@@ -140,6 +145,7 @@ class SlidesConfig:
         default_factory=SlidesResourceFilterConfig
     )
     download: SlidesDownloadConfig = field(default_factory=SlidesDownloadConfig)
+    pdf: SlidesPdfConfig = field(default_factory=SlidesPdfConfig)
 
 
 @dataclass(frozen=True)

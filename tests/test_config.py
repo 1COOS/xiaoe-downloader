@@ -9,8 +9,9 @@ def test_load_app_config_uses_builtin_defaults_when_file_is_missing(tmp_path):
     assert config.browser.cdp_url == "http://localhost:9222"
     assert config.extract.output_json == "items.json"
     assert config.download.output_dir == "./videos"
-    assert config.slides.output_dir == "./slides"
+    assert config.slides.output_dir == "./out/slides"
     assert config.slides.resource_concurrency == 6
+    assert config.slides.pdf.enabled is False
 
 
 def test_load_app_config_overrides_nested_toml_values(tmp_path):
@@ -34,6 +35,9 @@ def test_load_app_config_overrides_nested_toml_values(tmp_path):
         [slides.resource_filter]
         min_width = 1200
         exclude_url_tokens = ["avatar", "icon"]
+
+        [slides.pdf]
+        enabled = true
         """,
         encoding="utf-8",
     )
@@ -51,6 +55,7 @@ def test_load_app_config_overrides_nested_toml_values(tmp_path):
     assert config.slides.resource_concurrency == 3
     assert config.slides.resource_filter.min_width == 1200
     assert config.slides.resource_filter.exclude_url_tokens == ("avatar", "icon")
+    assert config.slides.pdf.enabled is True
 
 
 def test_load_app_config_ignores_old_xiaoe_downloader_toml(tmp_path):

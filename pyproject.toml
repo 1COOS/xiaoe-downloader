@@ -10,6 +10,7 @@ readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.10"
 dependencies = [
+  "img2pdf>=0.6.3",
   "playwright>=1.40",
   'tomli>=2; python_version < "3.11"',
 ]

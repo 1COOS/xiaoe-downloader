@@ -174,3 +174,72 @@ def test_all_command_without_url_in_cli_or_config_exits_with_clear_error(tmp_pat
     assert result.returncode == 2
     assert "course URL is required" in result.stderr
     assert "config.toml" in result.stderr
+
+
+def test_slides_command_reads_pdf_config_and_cli_override(tmp_path, monkeypatch):
+    (tmp_path / "config.toml").write_text(
+        """
+        [browser]
+        profile = "/tmp/profile"
+
+        [slides]
+        course_url = "https://config.example/course"
+        output_dir = "./configured-slides"
+
+        [slides.pdf]
+        enabled = true
+        """,
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+    calls = {}
+
+    class FakeScraper:
+        def __init__(self, options):
+            calls["options"] = options
+
+        async def scrape(self):
+            return {
+                "success_count": 0,
+                "failed_count": 0,
+                "skipped_count": 0,
+                "image_count": 0,
+                "output_root": "./configured-slides/课程",
+            }
+
+    monkeypatch.setattr(cli, "SlideScraper", FakeScraper)
+
+    cli.main(["slides", "--no-pdf"])
+
+    assert calls["options"].course_url == "https://config.example/course"
+    assert calls["options"].output_dir == "./configured-slides"
+    assert calls["options"].pdf_enabled is False
+
+
+def test_slides_pdf_command_uses_configured_default_root(tmp_path, monkeypatch):
+    (tmp_path / "config.toml").write_text(
+        """
+        [slides]
+        output_dir = "./configured-slides"
+        """,
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+    calls = {}
+
+    def fake_generate_pdfs(root):
+        calls["root"] = root
+
+        class Summary:
+            generated_count = 1
+            skipped_count = 0
+            failed_count = 0
+            page_count = 2
+
+        return Summary()
+
+    monkeypatch.setattr(cli, "generate_pdfs", fake_generate_pdfs)
+
+    cli.main(["slides-pdf"])
+
+    assert calls["root"] == "./configured-slides"

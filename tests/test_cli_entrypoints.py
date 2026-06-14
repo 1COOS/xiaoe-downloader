@@ -13,7 +13,7 @@ def test_package_module_entrypoint_shows_help():
 
     assert result.returncode == 0, result.stderr
     assert "xiaoe-downloader v" in result.stdout
-    assert "{extract,download,all,slides}" in result.stdout
+    assert "{extract,download,all,slides,slides-pdf}" in result.stdout
 
 
 def test_old_src_module_entrypoint_is_not_supported():
@@ -37,7 +37,7 @@ def test_console_script_shows_help():
 
     assert result.returncode == 0, result.stderr
     assert "xiaoe-downloader v" in result.stdout
-    assert "{extract,download,all,slides}" in result.stdout
+    assert "{extract,download,all,slides,slides-pdf}" in result.stdout
 
 
 def test_slides_command_shows_help():
@@ -54,6 +54,20 @@ def test_slides_command_shows_help():
     assert "--headed" in result.stdout
     assert "--skip-title" in result.stdout
     assert "--no-clear" in result.stdout
+    assert "--pdf" in result.stdout
+    assert "--no-pdf" in result.stdout
+
+
+def test_slides_pdf_command_shows_help():
+    result = subprocess.run(
+        ["xiaoe-downloader", "slides-pdf", "--help"],
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "SLIDES_ROOT" in result.stdout
 
 
 def test_old_intro_command_is_not_supported():

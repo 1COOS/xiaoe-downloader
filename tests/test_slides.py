@@ -20,11 +20,12 @@ from xiaoe_downloader.slides.models import SlideScrapeOptions
 def test_default_slide_options_match_cli_defaults():
     options = SlideScrapeOptions(course_url="https://example.com/p/course/ecourse/course_123")
 
-    assert options.output_dir == "./slides"
+    assert options.output_dir == "./out/slides"
     assert options.profile == "/tmp/xiaoe-playwright-profile"
     assert options.skip_title == "测试题"
     assert options.clear is True
     assert options.resource_concurrency == 6
+    assert options.pdf_enabled is False
 
 
 def test_catalog_item_from_raw_prefers_resource_and_chapter_titles():

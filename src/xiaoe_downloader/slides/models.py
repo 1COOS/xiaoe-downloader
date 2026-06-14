@@ -11,11 +11,12 @@ class SlideScrapeOptions:
     """Runtime options for the ``slides`` command."""
 
     course_url: str
-    output_dir: str = "./slides"
+    output_dir: str = "./out/slides"
     profile: str = DEFAULT_PROFILE
     headed: bool = False
     skip_title: str = "测试题"
     clear: bool = True
+    pdf_enabled: bool = False
     resource_concurrency: int = 6
     catalog_max_scrolls: int = 120
     image_max_scrolls: int = 200

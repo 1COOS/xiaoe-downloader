@@ -10,6 +10,7 @@ from typing import Sequence
 from . import __version__
 from .config import AppConfig, ConfigError, load_app_config
 from .slides.models import SlideScrapeOptions
+from .slides.pdf import generate_pdfs
 from .slides.scraper import SlideScraper
 from .video.downloader import VideoDownloader
 from .video.extractor import CourseExtractor
@@ -32,6 +33,8 @@ def main(argv: Sequence[str] | None = None) -> None:
         asyncio.run(run_all(args, config))
     elif args.command == "slides":
         asyncio.run(run_slides(args, config))
+    elif args.command == "slides-pdf":
+        run_slides_pdf(args)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -112,6 +115,24 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="clear existing course/item output directories before writing",
     )
+    slides_parser.add_argument(
+        "--pdf",
+        dest="pdf_enabled",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="generate sibling PDF files from downloaded slide images",
+    )
+
+    slides_pdf_parser = subcommands.add_parser(
+        "slides-pdf",
+        help="generate PDFs from an existing slides output directory",
+    )
+    slides_pdf_parser.add_argument(
+        "slides_root",
+        nargs="?",
+        metavar="SLIDES_ROOT",
+        help="slides root, course root, or chapter directory",
+    )
     return parser
 
 
@@ -141,7 +162,10 @@ def apply_config(args, config: AppConfig, parser: argparse.ArgumentParser) -> No
         args.headed = _pick(args.headed, config.browser.headed)
         args.skip_title = _pick(args.skip_title, config.slides.skip_title)
         args.clear = _pick(args.clear, config.slides.clear)
+        args.pdf_enabled = _pick(args.pdf_enabled, config.slides.pdf.enabled)
         _require_value(parser, args.course_url, "course URL")
+    elif args.command == "slides-pdf":
+        args.slides_root = _pick(args.slides_root, config.slides.output_dir)
 
 
 def _pick(cli_value, config_value):
@@ -248,6 +272,7 @@ async def run_slides(args, config: AppConfig) -> None:
         headed=args.headed,
         skip_title=args.skip_title,
         clear=args.clear,
+        pdf_enabled=args.pdf_enabled,
         resource_concurrency=config.slides.resource_concurrency,
         catalog_max_scrolls=config.slides.catalog_max_scrolls,
         image_max_scrolls=config.slides.image_max_scrolls,
@@ -292,7 +317,27 @@ async def run_slides(args, config: AppConfig) -> None:
         f"skipped: {summary['skipped_count']}, "
         f"images: {summary['image_count']}"
     )
+    if summary.get("pdf"):
+        pdf_summary = summary["pdf"]
+        print(
+            "PDFs - "
+            f"generated: {pdf_summary['generated_count']}, "
+            f"skipped: {pdf_summary['skipped_count']}, "
+            f"failed: {pdf_summary['failed_count']}, "
+            f"pages: {pdf_summary['page_count']}"
+        )
     print(f"Output: {summary['output_root']}")
+
+
+def run_slides_pdf(args) -> None:
+    summary = generate_pdfs(args.slides_root)
+    print(
+        "PDFs - "
+        f"generated: {summary.generated_count}, "
+        f"skipped: {summary.skipped_count}, "
+        f"failed: {summary.failed_count}, "
+        f"pages: {summary.page_count}"
+    )
 
 
 if __name__ == "__main__":

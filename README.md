@@ -17,6 +17,7 @@ Downloader for videos and intro-tab slide resources on xiaoe-tech course pages. 
 
 - 视频批量下载：提取课程目录，打开真实视频详情页，捕获 `.m3u8`，通过 `ffmpeg` 保存为 `.mp4`。
 - 课件资源抓取：`slides` 命令进入视频详情页“介绍”tab，当前支持下载识别到的图片型课件资源。
+- 课件 PDF 合并：可将已抓取的章节图片按 manifest 顺序合并为同级 PDF 文件。
 - 浏览器登录态复用：通过 Chrome CDP 或 Playwright profile 复用你已经登录的小鹅通会话。
 - 配置文件驱动：默认读取当前目录 `config.toml`，命令行参数可以覆盖配置。
 - 标准 Python 包结构：核心代码按 `video/` 和 `slides/` 两个功能域分包。
@@ -100,6 +101,9 @@ output_dir = "./out/videos"
 [slides]
 course_url = "https://example.h5.xet.pomoho.com/p/course/ecourse/course_xxxxx"
 output_dir = "./out/slides"
+
+[slides.pdf]
+enabled = false
 ```
 
 ### 3. Download videos / 下载视频
@@ -126,6 +130,12 @@ uv run xiaoe-downloader slides
 uv run xiaoe-downloader slides --headed
 ```
 
+需要抓取后自动合成 PDF 时：
+
+```bash
+uv run xiaoe-downloader slides --pdf
+```
+
 ## Commands / 命令
 
 | Command | Purpose |
@@ -134,6 +144,7 @@ uv run xiaoe-downloader slides --headed
 | `download [ITEMS_JSON]` | 从 `items.json` 打开每个视频详情页，捕获 `.m3u8` 并下载。 |
 | `all [COURSE_URL]` | 执行 `extract` + `download`，适合直接下载整门课。 |
 | `slides [COURSE_URL]` | 抓取视频详情页“介绍”tab 中的课件图片资源。 |
+| `slides-pdf [SLIDES_ROOT]` | 从已有 slides 输出目录生成章节 PDF。 |
 
 常用示例：
 
@@ -142,6 +153,7 @@ uv run xiaoe-downloader extract "https://example.xetslk.com/s/xxxxx" -o items.js
 uv run xiaoe-downloader download items.json --out ./out/videos
 uv run xiaoe-downloader all "https://example.xetslk.com/s/xxxxx" --out ./out/videos
 uv run xiaoe-downloader slides "https://example.h5.xet.pomoho.com/p/course/ecourse/course_xxxxx" --out ./out/slides
+uv run xiaoe-downloader slides-pdf ./out/slides
 uv run python -m xiaoe_downloader --help
 ```
 
@@ -179,7 +191,12 @@ output_dir = "./out/slides"
 skip_title = "测试题"
 clear = true
 resource_concurrency = 6
+
+[slides.pdf]
+enabled = false
 ```
+
+`slides --pdf` / `slides --no-pdf` 可以覆盖 `[slides.pdf] enabled`。`slides-pdf` 不重新抓取网页，只读取已有 `manifest.json` / `summary.json` 并补生成 PDF。
 
 `video_url_template` 和 `fallback_video_url_template` 默认留空。工具会优先使用页面提供的真实 `video_url` / `jump_url`；只有旧页面无法提供详情页 URL 时，才建议显式配置模板。
 
@@ -204,8 +221,9 @@ resource_concurrency = 6
 4. 滚动收集可识别的课件资源候选。
 5. 当前版本下载图片型资源，按页面顺序保存为 `001.jpg`、`002.jpg`。
 6. 写入每个条目的 `manifest.json` 和根级 `summary.json`。
+7. 如果开启 PDF，按 manifest 顺序生成和章节目录同级的 PDF。
 
-`slides` 这个命名面向未来扩展：后续可以在同一功能域内支持 PDF、PPT、文档等课件资源。
+`slides-pdf` 可以对已有输出补生成 PDF：传入 `out/slides` 会处理其中所有课程，传入某个课程目录会处理该课程，传入单个章节目录则只处理该章节。
 
 ## Output Layout / 输出结构
 
@@ -219,13 +237,17 @@ out/
         ├── 普通课程标题/
         │   ├── 001.jpg
         │   └── manifest.json
+        ├── 普通课程标题.pdf
         ├── 章节标题/
         │   ├── 子小节标题/
         │   │   ├── 001.jpg
         │   │   └── manifest.json
         │   └── manifest.json
+        ├── 章节标题.pdf
         └── summary.json
 ```
+
+普通课程目录会合成一个同名 PDF。父章节目录只生成父章节 PDF，按子小节在章节 `manifest.json` 中的顺序串联图片，不额外生成子小节 PDF。
 
 ## Architecture / 架构
 
@@ -237,9 +259,11 @@ flowchart LR
     Extractor["video.extractor"]
     VideoDownloader["video.downloader"]
     SlideScraper["slides.scraper"]
+    SlidePdf["slides.pdf"]
     FFmpeg["ffmpeg"]
     VideoFiles["out/videos/*.mp4"]
     SlideFiles["out/slides/**"]
+    PdfFiles["out/slides/**/*.pdf"]
 
     Config --> CLI
     CLI --> Extractor
@@ -251,6 +275,8 @@ flowchart LR
     VideoDownloader --> FFmpeg
     FFmpeg --> VideoFiles
     SlideScraper --> SlideFiles
+    SlideFiles --> SlidePdf
+    SlidePdf --> PdfFiles
 ```
 
 源码结构：
@@ -271,10 +297,11 @@ src/xiaoe_downloader/
     ├── manifest.py
     ├── models.py
     ├── naming.py
+    ├── pdf.py
     └── scraper.py
 ```
 
-`video/` 负责课程元数据提取与视频下载。`slides/` 负责课程目录加载、详情页“介绍”tab 资源收集、资源下载和 manifest 写入。
+`video/` 负责课程元数据提取与视频下载。`slides/` 负责课程目录加载、详情页“介绍”tab 资源收集、资源下载、manifest 写入和 PDF 合并。
 
 ## Development / 开发
 
@@ -312,14 +339,14 @@ Chrome 没有以远程调试模式运行，或端口不是 `9222`。重新按 Qu
 
 ### Why are slides saved as `.jpg`? / 为什么 slides 当前保存为 `.jpg`？
 
-`slides` 是面向课件资源的命令名，但当前实现只下载识别到的图片资源，因此使用连续编号的 `.jpg` 文件名。后续支持 PDF/PPT/文档时会扩展资源类型和命名策略。
+`slides` 是面向课件资源的命令名；当前抓取阶段下载识别到的图片资源，因此使用连续编号的 `.jpg` 文件名。需要 PDF 时可开启 `[slides.pdf] enabled`、传 `slides --pdf`，或用 `slides-pdf` 对已有图片补生成。
 
 ## Contributing / 贡献
 
 欢迎提交 issue 和 PR，尤其是：
 
 - 适配更多小鹅通站点页面结构。
-- 扩展 `slides` 支持 PDF、PPT、文档等课件资源。
+- 扩展 `slides` 支持 PPT、文档等课件资源。
 - 改进大课程下载稳定性、断点续传和错误恢复。
 - 补充测试用例和文档示例。
 
