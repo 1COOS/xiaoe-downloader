@@ -10,6 +10,7 @@ def test_load_app_config_uses_builtin_defaults_when_file_is_missing(tmp_path):
     assert config.extract.output_json == "items.json"
     assert config.download.output_dir == "./videos"
     assert config.slides.output_dir == "./out/slides"
+    assert config.slides.input_type == "auto"
     assert config.slides.resource_concurrency == 6
     assert config.slides.pdf.enabled is False
 
@@ -30,6 +31,7 @@ def test_load_app_config_overrides_nested_toml_values(tmp_path):
 
         [slides]
         output_dir = "./slides"
+        input_type = "video"
         resource_concurrency = 3
 
         [slides.resource_filter]
@@ -52,6 +54,7 @@ def test_load_app_config_overrides_nested_toml_values(tmp_path):
     assert config.extract.password == "secret"
     assert config.extract.max_scrolls == 42
     assert config.slides.output_dir == "./slides"
+    assert config.slides.input_type == "video"
     assert config.slides.resource_concurrency == 3
     assert config.slides.resource_filter.min_width == 1200
     assert config.slides.resource_filter.exclude_url_tokens == ("avatar", "icon")

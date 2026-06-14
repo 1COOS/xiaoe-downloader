@@ -11,6 +11,7 @@ class SlideScrapeOptions:
     """Runtime options for the ``slides`` command."""
 
     course_url: str
+    input_type: str = "auto"
     output_dir: str = "./out/slides"
     profile: str = DEFAULT_PROFILE
     headed: bool = False

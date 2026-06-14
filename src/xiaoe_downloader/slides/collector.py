@@ -10,14 +10,39 @@ from playwright.async_api import Page
 from .models import CatalogItem, SlideScrapeOptions
 
 SLIDE_NUM_RE = re.compile(r"幻灯片\s*(\d+)", re.I)
+SLIDES_INPUT_TYPES = {"auto", "catalog", "video"}
 
 
 def build_detail_url(item: CatalogItem, *, origin: str, course_id: str) -> str:
     url = urljoin(origin, item.jump_url)
-    if not course_id:
+    if not course_id or ("product_id=" in url and "course_id=" in url):
         return url
     separator = "&" if "?" in url else "?"
     return f"{url}{separator}product_id={course_id}&course_id={course_id}&sub_course_id="
+
+
+def detect_slides_input_type(url: str, requested: str = "auto") -> str:
+    """Resolve whether ``slides`` should treat ``url`` as a catalog or detail page."""
+    requested = (requested or "auto").strip().lower()
+    if requested not in SLIDES_INPUT_TYPES:
+        raise ValueError("input_type must be one of: auto, catalog, video")
+    if requested != "auto":
+        return requested
+
+    parsed = urlparse(canonical_url(url))
+    path = parsed.path.lower()
+    if "/p/course/video/" in path or video_resource_id_from_url(url):
+        return "video"
+    return "catalog"
+
+
+def video_resource_id_from_url(url: str) -> str:
+    """Return the ``v_...`` resource id from a video detail URL, if present."""
+    parsed = urlparse(canonical_url(url))
+    for segment in parsed.path.split("/"):
+        if segment.startswith("v_"):
+            return segment
+    return ""
 
 
 def canonical_url(url: str) -> str:

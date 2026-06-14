@@ -184,6 +184,7 @@ def test_slides_command_reads_pdf_config_and_cli_override(tmp_path, monkeypatch)
 
         [slides]
         course_url = "https://config.example/course"
+        input_type = "video"
         output_dir = "./configured-slides"
 
         [slides.pdf]
@@ -212,8 +213,50 @@ def test_slides_command_reads_pdf_config_and_cli_override(tmp_path, monkeypatch)
     cli.main(["slides", "--no-pdf"])
 
     assert calls["options"].course_url == "https://config.example/course"
+    assert calls["options"].input_type == "video"
     assert calls["options"].output_dir == "./configured-slides"
     assert calls["options"].pdf_enabled is False
+
+
+def test_slides_command_cli_input_type_overrides_config(tmp_path, monkeypatch):
+    (tmp_path / "config.toml").write_text(
+        """
+        [slides]
+        course_url = "https://config.example/p/course/video/v_1"
+        input_type = "video"
+        output_dir = "./configured-slides"
+        """,
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+    calls = {}
+
+    class FakeScraper:
+        def __init__(self, options):
+            calls["options"] = options
+
+        async def scrape(self):
+            return {
+                "success_count": 0,
+                "failed_count": 0,
+                "skipped_count": 0,
+                "image_count": 0,
+                "output_root": "./configured-slides/课程",
+            }
+
+    monkeypatch.setattr(cli, "SlideScraper", FakeScraper)
+
+    cli.main(
+        [
+            "slides",
+            "https://cli.example/p/course/ecourse/course_1",
+            "--input-type",
+            "catalog",
+        ]
+    )
+
+    assert calls["options"].course_url == "https://cli.example/p/course/ecourse/course_1"
+    assert calls["options"].input_type == "catalog"
 
 
 def test_slides_pdf_command_uses_configured_default_root(tmp_path, monkeypatch):

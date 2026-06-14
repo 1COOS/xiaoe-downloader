@@ -48,6 +48,7 @@ extra_args = []
 
 [slides]
 course_url = ""
+input_type = "auto"
 output_dir = "./out/slides"
 skip_title = "测试题"
 clear = true

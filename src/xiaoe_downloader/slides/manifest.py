@@ -82,9 +82,11 @@ def write_skipped_manifest(
     return {"status": "skipped", "reason": reason, "image_count": 0}
 
 
-def create_root_summary(course_url: str) -> dict:
+def create_root_summary(course_url: str, *, input_type: str = "catalog") -> dict:
     return {
         "course_url": course_url,
+        "input_url": course_url,
+        "input_type": input_type,
         "output_root": "",
         "catalog": {},
         "items": [],

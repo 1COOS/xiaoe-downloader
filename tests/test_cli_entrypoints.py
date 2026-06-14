@@ -49,7 +49,8 @@ def test_slides_command_shows_help():
     )
 
     assert result.returncode == 0, result.stderr
-    assert "COURSE_URL" in result.stdout
+    assert "URL" in result.stdout
+    assert "--input-type" in result.stdout
     assert "--profile" in result.stdout
     assert "--headed" in result.stdout
     assert "--skip-title" in result.stdout

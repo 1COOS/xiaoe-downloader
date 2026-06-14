@@ -15,7 +15,9 @@ from .collector import (
     click_intro_tab,
     collect_slide_resources,
     course_id_from_url,
+    detect_slides_input_type,
     origin_from_url,
+    video_resource_id_from_url,
 )
 from .downloads import download_slide_images
 from .manifest import add_item_to_summary, build_success_manifest, create_root_summary, write_json, write_skipped_manifest
@@ -25,7 +27,7 @@ from .pdf import generate_pdfs
 
 
 class SlideScraper:
-    """Scrape all intro-tab slide images from a course catalog page."""
+    """Scrape intro-tab slide images from course catalogs or single video pages."""
 
     def __init__(self, options: SlideScrapeOptions) -> None:
         self.options = options
@@ -33,9 +35,18 @@ class SlideScraper:
         self.course_id = course_id_from_url(options.course_url)
 
     async def scrape(self) -> dict:
+        input_type = detect_slides_input_type(
+            self.options.course_url,
+            requested=self.options.input_type,
+        )
+        if input_type == "video":
+            return await self._scrape_single_video()
+        return await self._scrape_catalog()
+
+    async def _scrape_catalog(self) -> dict:
         output_base = Path(self.options.output_dir)
         output_base.mkdir(parents=True, exist_ok=True)
-        summary = create_root_summary(self.options.course_url)
+        summary = create_root_summary(self.options.course_url, input_type="catalog")
 
         async with async_playwright() as playwright:
             context = await open_mobile_context(playwright, self.options)
@@ -89,6 +100,74 @@ class SlideScraper:
                 write_json(course_output_dir / "summary.json", summary)
             await context.close()
             return summary
+
+    async def _scrape_single_video(self) -> dict:
+        output_base = Path(self.options.output_dir)
+        output_base.mkdir(parents=True, exist_ok=True)
+        summary = create_root_summary(self.options.course_url, input_type="video")
+        summary["detail_url"] = self.options.course_url
+        summary["catalog"] = {
+            "total": 1,
+            "skipped_by_title": 0,
+            "selected": 1,
+        }
+
+        resource_id = video_resource_id_from_url(self.options.course_url) or "video"
+        item = CatalogItem(
+            index=1,
+            title=resource_id,
+            resource_id=resource_id,
+            jump_url="",
+        )
+        video_output_dir = output_base / (sanitize_name(resource_id) or "video")
+        summary["output_root"] = str(video_output_dir.resolve())
+
+        async with async_playwright() as playwright:
+            context = await open_mobile_context(playwright, self.options)
+            try:
+                detail_page = configure_page(
+                    context.pages[0] if context.pages else await context.new_page(),
+                    self.options,
+                )
+                self._prepare_output_dir(video_output_dir)
+                try:
+                    result = await self._scrape_detail(
+                        context,
+                        detail_page,
+                        item,
+                        video_output_dir,
+                        detail_url=self.options.course_url,
+                    )
+                except Exception as exc:
+                    result = {
+                        "status": "failed",
+                        "reason": "EXCEPTION",
+                        "image_count": 0,
+                        "error": repr(exc),
+                        "detail_url": self.options.course_url,
+                    }
+                    write_json(
+                        video_output_dir / "failed.json",
+                        {**_catalog_item_json(item), **result},
+                    )
+
+                item_summary = {
+                    "index": 1,
+                    "title": item.title,
+                    "resource_id": item.resource_id,
+                    "jump_url": item.jump_url,
+                    "output_dir": str(video_output_dir.resolve()),
+                    **result,
+                }
+                add_item_to_summary(summary, item_summary)
+                summary["finished_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
+                write_json(video_output_dir / "summary.json", summary)
+                if self.options.pdf_enabled:
+                    summary["pdf"] = generate_pdfs(video_output_dir).to_dict()
+                    write_json(video_output_dir / "summary.json", summary)
+                return summary
+            finally:
+                await context.close()
 
     async def _scrape_catalog_item(
         self,
@@ -228,8 +307,14 @@ class SlideScraper:
         page: Page,
         item: CatalogItem,
         output_dir: Path,
+        *,
+        detail_url: str | None = None,
     ) -> dict:
-        detail_url = build_detail_url(item, origin=self.origin, course_id=self.course_id)
+        detail_url = detail_url or build_detail_url(
+            item,
+            origin=self.origin,
+            course_id=self.course_id,
+        )
         await page.goto(
             detail_url,
             wait_until="domcontentloaded",

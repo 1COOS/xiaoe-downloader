@@ -134,6 +134,7 @@ class SlidesPdfConfig:
 @dataclass(frozen=True)
 class SlidesConfig:
     course_url: str = ""
+    input_type: str = "auto"
     output_dir: str = "./out/slides"
     skip_title: str = "测试题"
     clear: bool = True

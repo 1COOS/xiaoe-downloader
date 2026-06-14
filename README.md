@@ -100,6 +100,7 @@ output_dir = "./out/videos"
 
 [slides]
 course_url = "https://example.h5.xet.pomoho.com/p/course/ecourse/course_xxxxx"
+input_type = "auto"
 output_dir = "./out/slides"
 
 [slides.pdf]
@@ -124,6 +125,12 @@ uv run xiaoe-downloader all "https://example.xetslk.com/s/xxxxx" --out ./out/vid
 uv run xiaoe-downloader slides
 ```
 
+也可以直接传单个视频详情页 URL，只抓当前页面的“介绍”tab：
+
+```bash
+uv run xiaoe-downloader slides "https://example.h5.xet.pomoho.com/p/course/video/v_xxxxx?product_id=course_xxxxx"
+```
+
 登录态失效时打开可见浏览器重新登录：
 
 ```bash
@@ -143,7 +150,7 @@ uv run xiaoe-downloader slides --pdf
 | `extract [COURSE_URL]` | 读取课程目录，输出 `items.json`。 |
 | `download [ITEMS_JSON]` | 从 `items.json` 打开每个视频详情页，捕获 `.m3u8` 并下载。 |
 | `all [COURSE_URL]` | 执行 `extract` + `download`，适合直接下载整门课。 |
-| `slides [COURSE_URL]` | 抓取视频详情页“介绍”tab 中的课件图片资源。 |
+| `slides [URL]` | 抓取课程目录页或单个视频详情页“介绍”tab 中的课件图片资源。 |
 | `slides-pdf [SLIDES_ROOT]` | 从已有 slides 输出目录生成章节 PDF。 |
 
 常用示例：
@@ -153,6 +160,7 @@ uv run xiaoe-downloader extract "https://example.xetslk.com/s/xxxxx" -o items.js
 uv run xiaoe-downloader download items.json --out ./out/videos
 uv run xiaoe-downloader all "https://example.xetslk.com/s/xxxxx" --out ./out/videos
 uv run xiaoe-downloader slides "https://example.h5.xet.pomoho.com/p/course/ecourse/course_xxxxx" --out ./out/slides
+uv run xiaoe-downloader slides "https://example.h5.xet.pomoho.com/p/course/video/v_xxxxx?product_id=course_xxxxx" --input-type video
 uv run xiaoe-downloader slides-pdf ./out/slides
 uv run python -m xiaoe_downloader --help
 ```
@@ -187,6 +195,7 @@ fallback_video_url_template = ""
 
 [slides]
 course_url = ""
+input_type = "auto"
 output_dir = "./out/slides"
 skip_title = "测试题"
 clear = true
@@ -195,6 +204,8 @@ resource_concurrency = 6
 [slides.pdf]
 enabled = false
 ```
+
+`[slides] course_url` 可以是课程目录页，也可以是单个视频详情页。`input_type = "auto"` 会自动识别，必要时可改成 `"catalog"` 或 `"video"`；命令行 `--input-type` 优先级更高。
 
 `slides --pdf` / `slides --no-pdf` 可以覆盖 `[slides.pdf] enabled`。`slides-pdf` 不重新抓取网页，只读取已有 `manifest.json` / `summary.json` 并补生成 PDF。
 
@@ -215,9 +226,9 @@ enabled = false
 
 ### Slides workflow / 课件抓取流程
 
-1. 使用 Playwright 持久化 profile 打开课程目录页。
-2. 加载完整目录，跳过标题包含 `测试题` 的条目。
-3. 进入每个视频详情页并点击“介绍”tab。
+1. 使用 Playwright 持久化 profile 打开课程目录页或单个视频详情页。
+2. 自动判断 URL 类型；目录页会加载完整目录并跳过标题包含 `测试题` 的条目，视频详情页会直接处理当前页面。
+3. 进入视频详情页并点击“介绍”tab。
 4. 滚动收集可识别的课件资源候选。
 5. 当前版本下载图片型资源，按页面顺序保存为 `001.jpg`、`002.jpg`。
 6. 写入每个条目的 `manifest.json` 和根级 `summary.json`。
@@ -248,6 +259,8 @@ out/
 ```
 
 普通课程目录会合成一个同名 PDF。父章节目录只生成父章节 PDF，按子小节在章节 `manifest.json` 中的顺序串联图片，不额外生成子小节 PDF。
+
+单个视频详情页入口会直接输出到 `out/slides/<视频资源ID或标题>/`，该目录中同时包含 `manifest.json` 和 `summary.json`。
 
 ## Architecture / 架构
 

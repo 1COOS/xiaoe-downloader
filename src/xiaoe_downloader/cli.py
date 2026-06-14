@@ -84,13 +84,19 @@ def build_parser() -> argparse.ArgumentParser:
 
     slides_parser = subcommands.add_parser(
         "slides",
-        help="download slide images from each video detail page's intro tab",
+        help="download slide images from a catalog page or video detail page",
     )
     slides_parser.add_argument(
-        "course_url",
+        "url",
         nargs="?",
-        metavar="COURSE_URL",
-        help="course catalog page URL",
+        metavar="URL",
+        help="course catalog page URL or single video detail page URL",
+    )
+    slides_parser.add_argument(
+        "--input-type",
+        choices=("auto", "catalog", "video"),
+        default=None,
+        help="how to interpret URL; auto detects catalog vs video detail pages",
     )
     slides_parser.add_argument("--out", "-o", default=None, help="output directory")
     slides_parser.add_argument(
@@ -156,14 +162,15 @@ def apply_config(args, config: AppConfig, parser: argparse.ArgumentParser) -> No
         args.headless = _pick(args.headless, config.extract.headless)
         _require_value(parser, args.url, "course URL")
     elif args.command == "slides":
-        args.course_url = _pick(args.course_url, config.slides.course_url)
+        args.url = _pick(args.url, config.slides.course_url)
+        args.input_type = _pick(args.input_type, config.slides.input_type)
         args.out = _pick(args.out, config.slides.output_dir)
         args.profile = _pick(args.profile, config.browser.profile)
         args.headed = _pick(args.headed, config.browser.headed)
         args.skip_title = _pick(args.skip_title, config.slides.skip_title)
         args.clear = _pick(args.clear, config.slides.clear)
         args.pdf_enabled = _pick(args.pdf_enabled, config.slides.pdf.enabled)
-        _require_value(parser, args.course_url, "course URL")
+        _require_value(parser, args.url, "slides URL")
     elif args.command == "slides-pdf":
         args.slides_root = _pick(args.slides_root, config.slides.output_dir)
 
@@ -266,7 +273,8 @@ def build_video_downloader(
 
 async def run_slides(args, config: AppConfig) -> None:
     options = SlideScrapeOptions(
-        course_url=args.course_url,
+        course_url=args.url,
+        input_type=args.input_type,
         output_dir=args.out,
         profile=args.profile,
         headed=args.headed,
