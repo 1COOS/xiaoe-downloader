@@ -1,0 +1,50 @@
+# macOS
+.DS_Store
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.coverage
+.coverage.*
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Packaging and build artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# Test and tool output
+.tox/
+.nox/
+playwright-report/
+test-results/
+
+# Local runtime configuration
+config.toml
+*.local.toml
+
+# Downloader output
+/items.json
+/out/
+/videos/
+/slides/
+
+# Temporary files
+tmp/
+*.log
+*.tmp
+*.temp
+*.part

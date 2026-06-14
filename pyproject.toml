@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "xiaoe-downloader"
+version = "1.0.0"
+description = "Downloader for slides & videos on xiaoe-tech (小鹅通) platform"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+dependencies = [
+  "playwright>=1.40",
+  'tomli>=2; python_version < "3.11"',
+]
+
+[project.scripts]
+xiaoe-downloader = "xiaoe_downloader.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["xiaoe_downloader*"]
+
+[dependency-groups]
+dev = ["pytest", "pytest-asyncio"]
