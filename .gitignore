@@ -33,14 +33,10 @@ playwright-report/
 test-results/
 
 # Local runtime configuration
-config.toml
 *.local.toml
 
 # Downloader output
-/items.json
-/out/
-/videos/
-/slides/
+out/
 
 # Temporary files
 tmp/

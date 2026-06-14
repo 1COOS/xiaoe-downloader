@@ -1,0 +1,92 @@
+# Default configuration for xiaoe-downloader.
+# Command line arguments override values in this file.
+
+[browser]
+cdp_url = "http://localhost:9222"
+profile = "/tmp/xiaoe-playwright-profile"
+headed = false
+viewport_width = 390
+viewport_height = 844
+user_agent = "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1"
+default_timeout_ms = 15000
+navigation_timeout_ms = 60000
+
+[extract]
+course_url = ""
+password = ""
+output_json = "items.json"
+headless = false
+initial_wait_ms = 3000
+password_button_wait_ms = 1000
+password_input_wait_ms = 500
+password_submit_wait_ms = 3000
+catalog_tab_wait_ms = 1000
+max_scrolls = 15
+scroll_wait_ms = 1500
+stable_after_scroll = 3
+min_stable_items = 8
+# Optional legacy fallback. Leave empty unless the page exposes only resource IDs.
+video_url_template = ""
+
+[download]
+items_json = "items.json"
+output_dir = "./out/videos"
+concurrency = 1
+skip_existing = true
+filename_template = "{index_02}_{title}.mp4"
+page_timeout_ms = 30000
+page_wait_ms = 3000
+m3u8_match = ".m3u8"
+# Optional legacy fallback. Leave empty to require real URLs from items.json.
+fallback_video_url_template = ""
+
+[ffmpeg]
+executable = "ffmpeg"
+protocol_whitelist = "file,http,https,tcp,tls,crypto,httpproxy"
+timeout_seconds = 3600
+extra_args = []
+
+[slides]
+course_url = ""
+output_dir = "./out/slides"
+skip_title = "测试题"
+clear = true
+resource_concurrency = 6
+catalog_max_scrolls = 120
+image_max_scrolls = 200
+
+[slides.pdf]
+enabled = false
+
+[slides.timing]
+catalog_initial_wait_ms = 2200
+catalog_scroll_wait_ms = 850
+catalog_stable_cycles = 5
+chapter_response_checks = 20
+chapter_response_wait_ms = 500
+chapter_expand_wait_ms = 1200
+more_click_timeout_ms = 2000
+more_click_wait_ms = 700
+detail_load_wait_ms = 1500
+detail_retry_wait_ms = 1500
+intro_before_click_wait_ms = 1000
+intro_click_timeout_ms = 5000
+intro_after_click_wait_ms = 1000
+image_initial_wait_ms = 600
+image_scroll_wait_ms = 420
+image_scroll_step_min_px = 360
+image_scroll_viewport_ratio = 0.72
+image_end_hits = 5
+
+[slides.resource_filter]
+exclude_url_tokens = ["commonresource", "sprite", "icon", "avatar", "qlogo", "headimg", "loading"]
+include_url_tokens = ["xiaoe-materials", "wechatapppro-cos", "xiaoeknow", "xet-pic"]
+min_width = 900
+min_height = 450
+min_bytes = 1024
+slide_alt_prefix = "幻灯片"
+
+[slides.download]
+request_timeout_ms = 60000
+retries = 3
+retry_backoff_seconds = 0.8
