@@ -260,7 +260,7 @@ out/
 
 普通课程目录会合成一个同名 PDF。父章节目录只生成父章节 PDF，按子小节在章节 `manifest.json` 中的顺序串联图片，不额外生成子小节 PDF。
 
-单个视频详情页入口会直接输出到 `out/slides/<视频资源ID或标题>/`，该目录中同时包含 `manifest.json` 和 `summary.json`。
+单个视频详情页入口会直接使用课程名作为输出目录：`out/slides/<课程名>/` 存放图片、`manifest.json` 和 `summary.json`。
 
 ## Architecture / 架构
 

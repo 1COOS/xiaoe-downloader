@@ -277,7 +277,7 @@ def test_build_success_manifest_numbers_images_sequentially(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_single_video_mode_skips_catalog_and_writes_summary(tmp_path, monkeypatch):
+async def test_single_video_mode_writes_directly_to_course_title_directory(tmp_path, monkeypatch):
     video_url = (
         "https://app.example.com/p/course/video/v_66b19063e4b0694c9851b6f9"
         "?product_id=course_abc&course_id=course_abc&sub_course_id="
@@ -313,9 +313,27 @@ async def test_single_video_mode_skips_catalog_and_writes_summary(tmp_path, monk
     async def forbidden_load_full_catalog(page, scrape_options):
         raise AssertionError("single-video mode should not load the course catalog")
 
-    async def fake_scrape_detail(self, context, page, item, output_dir, *, detail_url=None):
+    async def fake_load_detail_page(self, page, item, *, detail_url=None):
         assert item.resource_id == "v_66b19063e4b0694c9851b6f9"
         assert detail_url == video_url
+        return video_url
+
+    async def fake_get_course_title(page):
+        return "课程/标题"
+
+    async def fake_scrape_detail(
+        self,
+        context,
+        page,
+        item,
+        output_dir,
+        *,
+        detail_url=None,
+        page_loaded=False,
+    ):
+        assert item.resource_id == "v_66b19063e4b0694c9851b6f9"
+        assert detail_url == video_url
+        assert page_loaded is True
         build_success_manifest(
             title=item.title,
             resource_id=item.resource_id,
@@ -338,17 +356,22 @@ async def test_single_video_mode_skips_catalog_and_writes_summary(tmp_path, monk
     monkeypatch.setattr(scraper_module, "open_mobile_context", fake_open_mobile_context)
     monkeypatch.setattr(scraper_module, "configure_page", lambda page, scrape_options: page)
     monkeypatch.setattr(scraper_module, "load_full_catalog", forbidden_load_full_catalog)
+    monkeypatch.setattr(scraper_module, "get_course_title", fake_get_course_title)
+    monkeypatch.setattr(SlideScraper, "_load_detail_page", fake_load_detail_page, raising=False)
     monkeypatch.setattr(SlideScraper, "_scrape_detail", fake_scrape_detail)
 
     summary = await SlideScraper(options).scrape()
-    video_dir = tmp_path / "v_66b19063e4b0694c9851b6f9"
+    course_dir = tmp_path / "课程-标题"
 
     assert summary["input_type"] == "video"
     assert summary["detail_url"] == video_url
+    assert summary["output_root"] == str(course_dir.resolve())
     assert summary["catalog"] == {"total": 1, "skipped_by_title": 0, "selected": 1}
     assert summary["success_count"] == 1
     assert summary["image_count"] == 1
-    assert (video_dir / "manifest.json").exists()
-    saved_summary = json.loads((video_dir / "summary.json").read_text(encoding="utf-8"))
+    assert (course_dir / "manifest.json").exists()
+    assert not (tmp_path / "v_66b19063e4b0694c9851b6f9").exists()
+    saved_summary = json.loads((course_dir / "summary.json").read_text(encoding="utf-8"))
     assert saved_summary["input_type"] == "video"
     assert saved_summary["items"][0]["detail_url"] == video_url
+    assert saved_summary["items"][0]["output_dir"] == str(course_dir.resolve())

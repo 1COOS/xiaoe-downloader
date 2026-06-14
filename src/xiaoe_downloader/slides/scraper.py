@@ -119,8 +119,10 @@ class SlideScraper:
             resource_id=resource_id,
             jump_url="",
         )
-        video_output_dir = output_base / (sanitize_name(resource_id) or "video")
-        summary["output_root"] = str(video_output_dir.resolve())
+        fallback_output_name = sanitize_name(resource_id) or "video"
+        course_output_dir = output_base / fallback_output_name
+        video_output_dir = course_output_dir
+        summary["output_root"] = str(course_output_dir.resolve())
 
         async with async_playwright() as playwright:
             context = await open_mobile_context(playwright, self.options)
@@ -129,16 +131,27 @@ class SlideScraper:
                     context.pages[0] if context.pages else await context.new_page(),
                     self.options,
                 )
-                self._prepare_output_dir(video_output_dir)
                 try:
+                    detail_url = await self._load_detail_page(
+                        detail_page,
+                        item,
+                        detail_url=self.options.course_url,
+                    )
+                    course_title = sanitize_name(await get_course_title(detail_page))
+                    course_output_dir = output_base / course_title
+                    video_output_dir = course_output_dir
+                    summary["output_root"] = str(course_output_dir.resolve())
+                    self._prepare_output_dir(video_output_dir)
                     result = await self._scrape_detail(
                         context,
                         detail_page,
                         item,
                         video_output_dir,
-                        detail_url=self.options.course_url,
+                        detail_url=detail_url,
+                        page_loaded=True,
                     )
                 except Exception as exc:
+                    self._prepare_output_dir(video_output_dir)
                     result = {
                         "status": "failed",
                         "reason": "EXCEPTION",
@@ -161,10 +174,10 @@ class SlideScraper:
                 }
                 add_item_to_summary(summary, item_summary)
                 summary["finished_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
-                write_json(video_output_dir / "summary.json", summary)
+                write_json(course_output_dir / "summary.json", summary)
                 if self.options.pdf_enabled:
-                    summary["pdf"] = generate_pdfs(video_output_dir).to_dict()
-                    write_json(video_output_dir / "summary.json", summary)
+                    summary["pdf"] = generate_pdfs(course_output_dir).to_dict()
+                    write_json(course_output_dir / "summary.json", summary)
                 return summary
             finally:
                 await context.close()
@@ -309,18 +322,16 @@ class SlideScraper:
         output_dir: Path,
         *,
         detail_url: str | None = None,
+        page_loaded: bool = False,
     ) -> dict:
-        detail_url = detail_url or build_detail_url(
-            item,
-            origin=self.origin,
-            course_id=self.course_id,
-        )
-        await page.goto(
-            detail_url,
-            wait_until="domcontentloaded",
-            timeout=self.options.navigation_timeout_ms,
-        )
-        await page.wait_for_timeout(self.options.detail_load_wait_ms)
+        if page_loaded:
+            detail_url = detail_url or build_detail_url(
+                item,
+                origin=self.origin,
+                course_id=self.course_id,
+            )
+        else:
+            detail_url = await self._load_detail_page(page, item, detail_url=detail_url)
         clicked_intro = await click_intro_tab(page, self.options)
         image_entries = await collect_slide_resources(page, self.options)
         if not image_entries and clicked_intro:
@@ -374,6 +385,26 @@ class SlideScraper:
             "image_count": manifest["image_count"],
             "detail_url": detail_url,
         }
+
+    async def _load_detail_page(
+        self,
+        page: Page,
+        item: CatalogItem,
+        *,
+        detail_url: str | None = None,
+    ) -> str:
+        detail_url = detail_url or build_detail_url(
+            item,
+            origin=self.origin,
+            course_id=self.course_id,
+        )
+        await page.goto(
+            detail_url,
+            wait_until="domcontentloaded",
+            timeout=self.options.navigation_timeout_ms,
+        )
+        await page.wait_for_timeout(self.options.detail_load_wait_ms)
+        return detail_url
 
     def _prepare_output_dir(self, path: Path) -> None:
         if self.options.clear and path.exists():
